@@ -3,6 +3,7 @@ app/services/report_pdf.py
 ──────────────────────────
 Generates a daily PDF report using fpdf2.
 Report includes: unit summary, min/max/avg/MKT, alert list, audit events.
+Uses clean text normalization so non-ASCII characters do not break PDF rendering.
 """
 import io
 from datetime import date, datetime, timezone
@@ -17,12 +18,31 @@ from app.models.storage_unit import StorageUnit
 from app.services.mkt import calculate_mkt
 
 
+def clean_text(s: str) -> str:
+    """Sanitize strings to safe characters supported by standard PDF fonts."""
+    if not s:
+        return ""
+    replacements = {
+        "\u2013": "-",
+        "\u2014": "-",
+        "\u2018": "'",
+        "\u2019": "'",
+        "\u201c": '"',
+        "\u201d": '"',
+        "\u00b0": " deg ",
+        "\u2022": "*",
+    }
+    for orig, rep in replacements.items():
+        s = s.replace(orig, rep)
+    return s.encode("latin-1", "replace").decode("latin-1")
+
+
 class ColdGuardPDF(FPDF):
     def header(self):
         self.set_font("Helvetica", "B", 14)
-        self.cell(0, 10, "ColdGuard – Daily Temperature Report", align="C", new_x="LMARGIN", new_y="NEXT")
+        self.cell(0, 10, clean_text("ColdGuard - Daily Temperature Report"), align="C", new_x="LMARGIN", new_y="NEXT")
         self.set_font("Helvetica", "", 9)
-        self.cell(0, 6, f"Generated: {datetime.now(timezone.utc).strftime('%Y-%m-%d %H:%M UTC')}", align="C", new_x="LMARGIN", new_y="NEXT")
+        self.cell(0, 6, clean_text(f"Generated: {datetime.now(timezone.utc).strftime('%Y-%m-%d %H:%M UTC')}"), align="C", new_x="LMARGIN", new_y="NEXT")
         self.ln(2)
 
     def footer(self):
@@ -55,7 +75,7 @@ def generate_daily_pdf(
     pdf.set_auto_page_break(auto=True, margin=15)
     pdf.add_page()
     pdf.set_font("Helvetica", "B", 11)
-    pdf.cell(0, 8, f"Report Date: {report_date.strftime('%d %B %Y')}", new_x="LMARGIN", new_y="NEXT")
+    pdf.cell(0, 8, clean_text(f"Report Date: {report_date.strftime('%d %B %Y')}"), new_x="LMARGIN", new_y="NEXT")
     pdf.ln(3)
 
     for unit in units:
@@ -74,10 +94,15 @@ def generate_daily_pdf(
 
         pdf.set_font("Helvetica", "B", 10)
         pdf.set_fill_color(220, 235, 245)
-        pdf.cell(0, 7, f"  Unit: {unit.name} ({unit.type.value})  |  Location: {unit.location or '-'}", fill=True, new_x="LMARGIN", new_y="NEXT")
+        unit_header = f"  Unit: {unit.name} ({unit.type.value})  |  Location: {unit.location or '-'}"
+        pdf.cell(0, 7, clean_text(unit_header), fill=True, new_x="LMARGIN", new_y="NEXT")
+        
         pdf.set_font("Helvetica", "", 9)
-        pdf.cell(0, 6, f"  Readings: {len(readings)}  |  Min: {min_t}°C  Max: {max_t}°C  Avg: {avg_t}°C  MKT: {mkt}°C", new_x="LMARGIN", new_y="NEXT")
-        pdf.cell(0, 6, f"  Safe range: {unit.min_temp}–{unit.max_temp}°C  |  Thresholds: warn {unit.warn_low}/{unit.warn_high}°C  critical {unit.critical_min}/{unit.critical_max}°C", new_x="LMARGIN", new_y="NEXT")
+        stats_line = f"  Readings: {len(readings)}  |  Min: {min_t} C  Max: {max_t} C  Avg: {avg_t} C  MKT: {mkt} C"
+        pdf.cell(0, 6, clean_text(stats_line), new_x="LMARGIN", new_y="NEXT")
+        
+        threshold_line = f"  Safe range: {unit.min_temp} to {unit.max_temp} C  |  Thresholds: warn {unit.warn_low}/{unit.warn_high} C  critical {unit.critical_min}/{unit.critical_max} C"
+        pdf.cell(0, 6, clean_text(threshold_line), new_x="LMARGIN", new_y="NEXT")
         pdf.ln(2)
 
         # Alerts for this unit on this day
@@ -95,11 +120,11 @@ def generate_daily_pdf(
                 opened = alert.opened_at.strftime("%H:%M") if alert.opened_at else "-"
                 closed = alert.resolved_at.strftime("%H:%M") if alert.resolved_at else "ongoing"
                 acked = alert.acknowledged_by or "not acknowledged"
-                pdf.cell(0, 5,
+                alert_text = (
                     f"    #{alert.id} [{alert.type.value}] {opened}-{closed}  "
-                    f"Level {alert.level}  Status: {alert.status.value}  Acked by: {acked}",
-                    new_x="LMARGIN", new_y="NEXT"
+                    f"Level {alert.level}  Status: {alert.status.value}  Acked by: {acked}"
                 )
+                pdf.cell(0, 5, clean_text(alert_text), new_x="LMARGIN", new_y="NEXT")
         else:
             pdf.set_font("Helvetica", "I", 9)
             pdf.cell(0, 6, "  No alerts on this day.", new_x="LMARGIN", new_y="NEXT")
@@ -109,13 +134,12 @@ def generate_daily_pdf(
     # Signature lines (like a real vaccine logbook)
     pdf.ln(10)
     pdf.set_font("Helvetica", "", 9)
-    pdf.cell(60, 6, "Staff Signature: ___________________", new_x="RIGHT", new_y="LAST")
+    pdf.cell(60, 6, clean_text("Staff Signature: ___________________"), new_x="RIGHT", new_y="LAST")
     pdf.cell(10, 6, "", new_x="RIGHT", new_y="LAST")
-    pdf.cell(60, 6, "Manager Signature: ___________________", new_x="LMARGIN", new_y="NEXT")
+    pdf.cell(60, 6, clean_text("Manager Signature: ___________________"), new_x="LMARGIN", new_y="NEXT")
     pdf.ln(5)
-    pdf.cell(60, 6, "Date: ___________________", new_x="RIGHT", new_y="LAST")
+    pdf.cell(60, 6, clean_text("Date: ___________________"), new_x="RIGHT", new_y="LAST")
     pdf.cell(10, 6, "", new_x="RIGHT", new_y="LAST")
-    pdf.cell(60, 6, "Date: ___________________", new_x="LMARGIN", new_y="NEXT")
+    pdf.cell(60, 6, clean_text("Date: ___________________"), new_x="LMARGIN", new_y="NEXT")
 
     return bytes(pdf.output())
-

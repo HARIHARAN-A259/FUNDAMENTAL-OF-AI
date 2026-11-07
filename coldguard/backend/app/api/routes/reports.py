@@ -28,7 +28,7 @@ def download_pdf(
     report_date: Optional[date] = Query(default=None),
     unit_id: Optional[int] = Query(default=None),
     db: Session = Depends(get_db),
-    _: User = Depends(require_manager_or_above),
+    _: User = Depends(get_current_user),
 ):
     pdf_bytes = generate_daily_pdf(db, report_date, unit_id)
     return Response(
@@ -44,7 +44,7 @@ def download_readings_csv(
     from_date: Optional[datetime] = Query(default=None),
     to_date: Optional[datetime] = Query(default=None),
     db: Session = Depends(get_db),
-    _: User = Depends(require_manager_or_above),
+    _: User = Depends(get_current_user),
 ):
     q = db.query(Reading)
     if unit_id:
@@ -72,7 +72,7 @@ def download_readings_csv(
 def download_alerts_csv(
     unit_id: Optional[int] = Query(default=None),
     db: Session = Depends(get_db),
-    _: User = Depends(require_manager_or_above),
+    _: User = Depends(get_current_user),
 ):
     q = db.query(Alert)
     if unit_id:

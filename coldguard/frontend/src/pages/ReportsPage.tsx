@@ -11,60 +11,88 @@ export const ReportsPage: React.FC = () => {
   );
   const [selectedUnit, setSelectedUnit] = useState<string>('');
 
+  const [downloadError, setDownloadError] = useState<string>('');
+  const [isDownloading, setIsDownloading] = useState<boolean>(false);
+
   const { data: units = [] } = useQuery({
     queryKey: ['units'],
     queryFn: getUnitsApi,
   });
 
-  const handleDownloadPdf = () => {
+  const handleDownloadPdf = async () => {
+    setDownloadError('');
+    setIsDownloading(true);
     const token = localStorage.getItem('coldguard_token');
     const unitParam = selectedUnit ? `&unit_id=${selectedUnit}` : '';
     const url = `${API_BASE_URL}/api/reports/daily.pdf?report_date=${reportDate}${unitParam}`;
 
-    // Trigger download with auth token
-    fetch(url, {
-      headers: { Authorization: `Bearer ${token}` },
-    })
-      .then((res) => res.blob())
-      .then((blob) => {
-        const link = document.createElement('a');
-        link.href = window.URL.createObjectURL(blob);
-        link.download = `coldguard-report-${reportDate}.pdf`;
-        link.click();
+    try {
+      const res = await fetch(url, {
+        headers: { Authorization: `Bearer ${token}` },
       });
+
+      if (!res.ok) {
+        const errorText = await res.json().catch(() => ({ detail: res.statusText }));
+        throw new Error(errorText.detail || `Server returned error ${res.status}`);
+      }
+
+      const blob = await res.blob();
+      const link = document.createElement('a');
+      link.href = window.URL.createObjectURL(blob);
+      link.download = `coldguard-report-${reportDate}.pdf`;
+      link.click();
+    } catch (err: any) {
+      setDownloadError(err.message || 'Failed to download PDF report');
+    } finally {
+      setIsDownloading(false);
+    }
   };
 
-  const handleDownloadReadingsCsv = () => {
+  const handleDownloadReadingsCsv = async () => {
+    setDownloadError('');
     const token = localStorage.getItem('coldguard_token');
     const unitParam = selectedUnit ? `?unit_id=${selectedUnit}` : '';
     const url = `${API_BASE_URL}/api/reports/readings.csv${unitParam}`;
 
-    fetch(url, {
-      headers: { Authorization: `Bearer ${token}` },
-    })
-      .then((res) => res.blob())
-      .then((blob) => {
-        const link = document.createElement('a');
-        link.href = window.URL.createObjectURL(blob);
-        link.download = `readings-export-${reportDate}.csv`;
-        link.click();
+    try {
+      const res = await fetch(url, {
+        headers: { Authorization: `Bearer ${token}` },
       });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({ detail: res.statusText }));
+        throw new Error(err.detail || `Server error ${res.status}`);
+      }
+      const blob = await res.blob();
+      const link = document.createElement('a');
+      link.href = window.URL.createObjectURL(blob);
+      link.download = `readings-export-${reportDate}.csv`;
+      link.click();
+    } catch (err: any) {
+      setDownloadError(err.message || 'Failed to download readings CSV');
+    }
   };
 
-  const handleDownloadAlertsCsv = () => {
+  const handleDownloadAlertsCsv = async () => {
+    setDownloadError('');
     const token = localStorage.getItem('coldguard_token');
     const url = `${API_BASE_URL}/api/reports/alerts.csv`;
 
-    fetch(url, {
-      headers: { Authorization: `Bearer ${token}` },
-    })
-      .then((res) => res.blob())
-      .then((blob) => {
-        const link = document.createElement('a');
-        link.href = window.URL.createObjectURL(blob);
-        link.download = `alerts-export-${reportDate}.csv`;
-        link.click();
+    try {
+      const res = await fetch(url, {
+        headers: { Authorization: `Bearer ${token}` },
       });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({ detail: res.statusText }));
+        throw new Error(err.detail || `Server error ${res.status}`);
+      }
+      const blob = await res.blob();
+      const link = document.createElement('a');
+      link.href = window.URL.createObjectURL(blob);
+      link.download = `alerts-export-${reportDate}.csv`;
+      link.click();
+    } catch (err: any) {
+      setDownloadError(err.message || 'Failed to download alerts CSV');
+    }
   };
 
   return (
@@ -77,6 +105,18 @@ export const ReportsPage: React.FC = () => {
           Export verified temperature records, Mean Kinetic Temperature assessments, and WHO-compliant PDF logbooks
         </p>
       </div>
+
+      {downloadError && (
+        <div className="p-3 rounded-xl bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-800 text-rose-700 dark:text-rose-300 text-xs flex items-center justify-between">
+          <span>{downloadError}</span>
+          <button
+            onClick={() => setDownloadError('')}
+            className="text-rose-500 hover:text-rose-700 font-bold ml-2"
+          >
+            ✕
+          </button>
+        </div>
+      )}
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         {/* PDF Daily Report Card */}
@@ -128,7 +168,12 @@ export const ReportsPage: React.FC = () => {
           </div>
 
           <div className="pt-2">
-            <Button variant="primary" onClick={handleDownloadPdf} className="w-full sm:w-auto">
+            <Button
+              variant="primary"
+              onClick={handleDownloadPdf}
+              isLoading={isDownloading}
+              className="w-full sm:w-auto"
+            >
               <FileDown className="w-4 h-4 mr-1.5" /> Download Daily Report (PDF)
             </Button>
           </div>
