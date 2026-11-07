@@ -13,7 +13,19 @@ import {
   User,
 } from '../types';
 
-const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000';
+// Base API URL from environment variable, falling back to localhost:8000
+export const API_BASE_URL = (
+  import.meta.env.VITE_API_URL ? import.meta.env.VITE_API_URL.trim() : 'http://localhost:8000'
+).replace(/\/+$/, '');
+
+// Base WebSocket URL from VITE_WS_URL, or derived from VITE_API_URL, or fallback to ws://localhost:8000
+export const WS_BASE_URL = (
+  import.meta.env.VITE_WS_URL
+    ? import.meta.env.VITE_WS_URL.trim()
+    : import.meta.env.VITE_API_URL
+    ? import.meta.env.VITE_API_URL.trim().replace(/^http/, 'ws')
+    : 'ws://localhost:8000'
+).replace(/\/+$/, '');
 
 export const api = axios.create({
   baseURL: API_BASE_URL,

@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
+import { WS_BASE_URL } from '../api/client';
 
 export function useWebSocket() {
   const [isConnected, setIsConnected] = useState(false);
@@ -11,8 +12,7 @@ export function useWebSocket() {
     let reconnectTimeout: any = null;
 
     function connect() {
-      const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-      const wsUrl = `${protocol}//${window.location.hostname}:8000/ws`;
+      const wsUrl = `${WS_BASE_URL}/ws`;
 
       const ws = new WebSocket(wsUrl);
       wsRef.current = ws;

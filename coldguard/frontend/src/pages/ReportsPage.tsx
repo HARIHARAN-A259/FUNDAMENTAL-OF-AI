@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { FileDown, Calendar, FileText, Table, CheckCircle2 } from 'lucide-react';
-import { getUnitsApi } from '../api/client';
+import { FileDown, FileText, Table } from 'lucide-react';
+import { getUnitsApi, API_BASE_URL } from '../api/client';
 import { Card } from '../components/ui/Card';
 import { Button } from '../components/ui/Button';
 
@@ -19,7 +19,7 @@ export const ReportsPage: React.FC = () => {
   const handleDownloadPdf = () => {
     const token = localStorage.getItem('coldguard_token');
     const unitParam = selectedUnit ? `&unit_id=${selectedUnit}` : '';
-    const url = `http://localhost:8000/api/reports/daily.pdf?report_date=${reportDate}${unitParam}`;
+    const url = `${API_BASE_URL}/api/reports/daily.pdf?report_date=${reportDate}${unitParam}`;
 
     // Trigger download with auth token
     fetch(url, {
@@ -37,7 +37,7 @@ export const ReportsPage: React.FC = () => {
   const handleDownloadReadingsCsv = () => {
     const token = localStorage.getItem('coldguard_token');
     const unitParam = selectedUnit ? `?unit_id=${selectedUnit}` : '';
-    const url = `http://localhost:8000/api/reports/readings.csv${unitParam}`;
+    const url = `${API_BASE_URL}/api/reports/readings.csv${unitParam}`;
 
     fetch(url, {
       headers: { Authorization: `Bearer ${token}` },
@@ -53,7 +53,7 @@ export const ReportsPage: React.FC = () => {
 
   const handleDownloadAlertsCsv = () => {
     const token = localStorage.getItem('coldguard_token');
-    const url = `http://localhost:8000/api/reports/alerts.csv`;
+    const url = `${API_BASE_URL}/api/reports/alerts.csv`;
 
     fetch(url, {
       headers: { Authorization: `Bearer ${token}` },

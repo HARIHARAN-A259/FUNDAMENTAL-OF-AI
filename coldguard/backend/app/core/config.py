@@ -18,6 +18,7 @@ class Settings(BaseSettings):
     DATABASE_URL: str = "sqlite:///./coldguard.db"
 
     # ── CORS ──
+    FRONTEND_URL: str = ""
     FRONTEND_ORIGIN: str = "http://localhost:5173"
 
     # ── Notifications ──
